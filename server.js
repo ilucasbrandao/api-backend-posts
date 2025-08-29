@@ -37,7 +37,7 @@ app.get("/posts/:id", async (req, res) => {
 });
 
 // ------ ROTA POST ------ //
-app.post("/posts/create", async (req, res) => {
+app.post("/posts", async (req, res) => {
   try {
     let { title, author, dataPostagem } = req.body;
 
