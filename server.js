@@ -1,100 +1,127 @@
 import express from "express";
 import dotenv from "dotenv";
-import pool from "./db.js";
 import cors from "cors";
+import { pool } from "./db.js";
 
 dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const port = process.env.PORT || 3000;
+// ------ ROTAS ------ //
 
-// ------ ROTA GET LIST ------ //
-app.get("/posts", async (req, res) => {
+// GET todos os produtos
+app.get("/products", async (req, res) => {
   try {
-    const posts = await pool.query("SELECT * FROM posts");
-    res.status(200).json(posts.rows);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    const result = await pool.query("SELECT * FROM sales ORDER BY id DESC");
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Erro ao buscar produtos");
   }
 });
 
-// ------ ROTA GET ONE ------ //
-app.get("/posts/:id", async (req, res) => {
+// GET produto por id
+app.get("/products/:id", async (req, res) => {
+  const { id } = req.params;
   try {
-    const { id } = req.params;
-    const post = await pool.query("SELECT * FROM posts WHERE id = $1", [id]);
-
-    if (post.rowCount === 0) {
-      return res.status(404).json({ message: "Post não encontrado!" });
-    }
-
-    res.status(200).json(post.rows[0]);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    const result = await pool.query("SELECT * FROM sales WHERE id = $1", [id]);
+    if (result.rows.length === 0)
+      return res.status(404).send("Produto não encontrado");
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Erro ao buscar produto");
   }
 });
 
-// ------ ROTA POST ------ //
-app.post("/posts", async (req, res) => {
+// POST criar produto
+app.post("/products", async (req, res) => {
+  const {
+    order_date,
+    product_name,
+    quantity,
+    unit_price,
+    discount,
+    total_amount,
+    payment_method,
+    note,
+  } = req.body;
   try {
-    let { title, author, dataPostagem } = req.body;
-
-    if (!title || !author) {
-      return res.status(400).json({ message: "Campos obrigatórios faltando!" });
-    }
-
-    const newPost = await pool.query(
-      "INSERT INTO posts (title, author, dataPostagem) VALUES ($1, $2, $3) RETURNING id",
-      [title, author, dataPostagem]
+    const result = await pool.query(
+      "INSERT INTO sales (order_date, product_name, quantity, unit_price, discount, total_amount, payment_method, note) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *",
+      [
+        order_date,
+        product_name,
+        quantity,
+        unit_price,
+        discount,
+        total_amount,
+        payment_method,
+        note,
+      ]
     );
-    res.status(201).json(newPost.rows[0]);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Erro ao criar produto");
   }
 });
 
-// ------ ROTA PUT ------ //
-app.put("/posts/:id", async (req, res) => {
+// PUT atualizar produto
+app.put("/products/:id", async (req, res) => {
+  const { id } = req.params;
+  const {
+    order_date,
+    product_name,
+    quantity,
+    unit_price,
+    discount,
+    total_amount,
+    payment_method,
+    note,
+  } = req.body;
   try {
-    const { id } = req.params;
-    const { title, author, dataPostagem } = req.body;
-
-    //--- Atualizar banco de dados ---//
-    const updateQuery = await pool.query(
-      "UPDATE posts SET title = COALESCE($1, title), author = COALESCE($2, author), dataPostagem = COALESCE($3, dataPostagem) WHERE id = $4 RETURNING *",
-      [title, author, dataPostagem, id]
+    const result = await pool.query(
+      "UPDATE sales SET order_date=$1, product_name=$2, quantity=$3, unit_price=$4, discount=$5, total_amount=$6, payment_method=$7, note=$8 WHERE id=$9 RETURNING *",
+      [
+        order_date,
+        product_name,
+        quantity,
+        unit_price,
+        discount,
+        total_amount,
+        payment_method,
+        note,
+        id,
+      ]
     );
-
-    if (updateQuery.rowCount === 0) {
-      return res.status(404).json({ message: "Post não encontrado!" });
-    }
-    res.status(200).json(updateQuery.rowCount[0]);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    if (result.rows.length === 0)
+      return res.status(404).send("Produto não encontrado");
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Erro ao atualizar produto");
   }
 });
 
-//------ ROTA DELETE ------ //
-app.delete("/posts/:id", async (req, res) => {
+// DELETE produto
+app.delete("/products/:id", async (req, res) => {
+  const { id } = req.params;
   try {
-    const { id } = req.params;
-
-    //--- Deletar do banco de dados ---//
-    const deleteQuery = await pool.query("DELETE FROM posts WHERE id = $1 ", [
-      id,
-    ]);
-
-    if (deleteQuery.rowCount === 0) {
-      return res.status(404).json({ message: "Post não encontrado!" });
-    }
-    res.status(200).json({ id: id });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    const result = await pool.query(
+      "DELETE FROM sales WHERE id=$1 RETURNING *",
+      [id]
+    );
+    if (result.rows.length === 0)
+      return res.status(404).send("Produto não encontrado");
+    res.json({ message: "Produto deletado com sucesso" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Erro ao deletar produto");
   }
 });
 
-app.listen(port, () => {
-  console.log(`Rota: HTTP://localhost:${port}`);
-});
+// Inicia servidor
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
