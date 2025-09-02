@@ -9,7 +9,7 @@ export const pool = new Pool({
   host: process.env.DB_HOST || "localhost",
   user: process.env.DB_USER || "postgres",
   password: process.env.DB_PASS || "lucas123",
-  database: process.env.DB_NAME || "posts",
+  database: process.env.DB_NAME || "crediarioBrandao",
   port: process.env.DB_PORT || 5432,
 });
 
